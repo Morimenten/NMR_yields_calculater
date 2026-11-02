@@ -3,7 +3,7 @@
 内部標準法による ¹H / ¹⁹F NMR 収率を計算する Web ツールです。
 ブラウザだけで動作し、入力値はどこにも送信されません。
 
-**公開ページ:** https://suemorikazuki.github.io/NMR_yields_calculater/
+**公開ページ:** https://morimenten.github.io/NMR_yields_calculater/
 
 ## 主な機能
 
