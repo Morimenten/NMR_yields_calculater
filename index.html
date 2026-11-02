@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>NMR Yield Calculator</title>
+<script>
+  // Apply the saved theme before first paint to avoid a light/dark flash.
+  (function () {
+    try {
+      var t = localStorage.getItem("nmrYieldCalculator.theme");
+      if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="app-header">
+    <div class="brand">
+      <h1>NMR Yield Calculator</h1>
+      <p class="subtitle">内部標準法による ¹H / ¹⁹F NMR 収率計算</p>
+    </div>
+
+    <div class="header-controls">
+      <div class="nucleus-toggle" role="tablist" aria-label="測定核の選択">
+        <button type="button" class="nucleus-btn is-active" data-nucleus="1H" role="tab" aria-selected="true">¹H</button>
+        <button type="button" class="nucleus-btn" data-nucleus="19F" role="tab" aria-selected="false">¹⁹F</button>
+      </div>
+
+      <button type="button" class="theme-btn" id="theme-btn" aria-label="表示テーマを切り替え（現在: 自動）">
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+          <circle cx="10" cy="10" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10 2.75a7.25 7.25 0 0 1 0 14.5z" fill="currentColor"/>
+        </svg>
+        <span id="theme-label">自動</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <section class="form-panel" aria-label="入力">
+
+      <fieldset class="group">
+        <legend><span class="swatch swatch--is" aria-hidden="true"></span>内部標準</legend>
+
+        <div class="field">
+          <label for="is-select">化合物</label>
+          <select id="is-select"></select>
+          <p class="compound-meta">CAS <span id="is-cas">—</span></p>
+        </div>
+
+        <div class="field">
+          <label for="is-signal">基準シグナル</label>
+          <select id="is-signal"></select>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="is-n">H/F数 <span class="sym"><i>N</i><sub>IS</sub></span></label>
+            <input type="number" id="is-n" inputmode="numeric" step="1" min="1" placeholder="例: 9">
+          </div>
+          <div class="field">
+            <label for="is-integral">積分値 <span class="sym"><i>I</i><sub>IS</sub></span> <span class="mode" id="iis-mode">（H/F数に連動）</span></label>
+            <input type="number" id="is-integral" inputmode="decimal" step="any" min="0" placeholder="例: 9.00"
+              aria-describedby="integral-hint">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="is-mw">分子量 <span class="sym">g mol⁻¹</span></label>
+          <input type="number" id="is-mw" inputmode="decimal" step="any" min="0" placeholder="例: 168.19">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="is-mass">質量 <span class="sym">mg</span></label>
+            <input type="number" id="is-mass" inputmode="decimal" step="any" min="0" placeholder="例: 8.41">
+          </div>
+          <div class="field">
+            <label for="is-mmol">物質量 <span class="sym"><i>n</i><sub>IS</sub> / mmol</span></label>
+            <input type="number" id="is-mmol" inputmode="decimal" step="any" min="0" placeholder="例: 0.0500">
+          </div>
+        </div>
+        <p class="hint">質量と物質量は分子量で相互に換算されます（最後に編集した方を優先）。分子量が空欄のときは換算しません。</p>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend><span class="swatch swatch--an" aria-hidden="true"></span>生成物</legend>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="product-integral">積分値 <span class="sym"><i>I</i><sub>analyte</sub></span></label>
+            <input type="number" id="product-integral" inputmode="decimal" step="any" min="0" placeholder="例: 10.8">
+          </div>
+          <div class="field">
+            <label for="product-n">H/F数 <span class="sym"><i>N</i><sub>analyte</sub></span></label>
+            <input type="number" id="product-n" inputmode="numeric" step="1" min="1" placeholder="例: 2">
+          </div>
+        </div>
+        <p class="hint hint-integral" id="integral-hint"></p>
+
+        <div class="field">
+          <label for="theoretical-mmol">理論生成量 <span class="sym">mmol</span></label>
+          <input type="number" id="theoretical-mmol" inputmode="decimal" step="any" min="0" placeholder="例: 0.300">
+        </div>
+
+        <div class="field">
+          <label for="product-mw">分子量 <span class="sym">g mol⁻¹</span> <span class="mode">（任意）</span></label>
+          <input type="number" id="product-mw" inputmode="decimal" step="any" min="0" placeholder="例: 254.28">
+        </div>
+        <p class="hint">分子量を入れると、生成量を mg でも表示します。</p>
+      </fieldset>
+
+      <button type="button" id="reset-btn" class="reset-btn">入力をリセット</button>
+    </section>
+
+    <aside class="result-panel" id="result-panel" aria-label="計算結果">
+      <div class="result-head">
+        <span class="result-tag" id="readout-nucleus-tag">¹H NMR 収率</span>
+        <span class="status-dot" id="readout-status" aria-hidden="true"></span>
+      </div>
+
+      <div class="readout-value-block">
+        <button type="button" class="readout-value-button" id="yield-copy-btn" disabled
+          aria-label="NMR収率をコピー" title="クリックで収率をコピー">
+          <span class="readout-value is-empty" id="yield-value">—</span>
+          <span class="readout-value-unit">%</span>
+        </button>
+        <span class="copy-feedback" id="copy-feedback" role="status" aria-live="polite"></span>
+      </div>
+
+      <figure class="viz">
+        <svg id="viz" class="is-empty" viewBox="0 0 320 132" role="img" aria-label="内部標準と生成物の物質量比の図">
+          <line class="viz-baseline" x1="8" y1="100" x2="312" y2="100"/>
+          <g class="peak peak--is" id="viz-is">
+            <path class="peak-shape" d="M34,100 C74,100 81,20 90,20 C99,20 106,100 146,100 Z" vector-effect="non-scaling-stroke"/>
+            <path class="peak-int" d="M34,100 L72,100 C84,100 96,20 108,20 L146,20" vector-effect="non-scaling-stroke"/>
+          </g>
+          <g class="peak peak--an" id="viz-an">
+            <path class="peak-shape" d="M174,100 C214,100 221,20 230,20 C239,20 246,100 286,100 Z" vector-effect="non-scaling-stroke"/>
+            <path class="peak-int" d="M174,100 L212,100 C224,100 236,20 248,20 L286,20" vector-effect="non-scaling-stroke"/>
+          </g>
+          <text class="viz-label" id="viz-is-label" x="90" y="122" text-anchor="middle">内部標準</text>
+          <text class="viz-label" id="viz-an-label" x="230" y="122" text-anchor="middle">生成物</text>
+        </svg>
+        <figcaption>ピークの高さは 1H/F あたりの積分値（＝物質量の比）</figcaption>
+      </figure>
+
+      <div class="calc-steps" id="calc-steps">
+        <p class="steps-placeholder">値を入力すると、ここに計算過程が表示されます。</p>
+      </div>
+
+      <p class="result-note">参考値です。積分値・H/F数・分子量を再確認してください。</p>
+    </aside>
+
+  </main>
+
+  <footer class="app-footer">
+    入力値はこのブラウザ内だけで計算され、どこにも送信されません。
+  </footer>
+
+</div>
+
+<button type="button" class="mobile-bar" id="mobile-bar" aria-label="計算結果へ移動">
+  <span class="mobile-tag" id="mobile-tag">¹H NMR 収率</span>
+  <span class="mobile-value"><strong id="mobile-yield">—</strong> %</span>
+</button>
+
+<script src="script.js"></script>
+</body>
+</html>
